@@ -69,7 +69,7 @@ int main(int argc, char* argv[])
         memcpy(message + size, buff, ret);
         size += ret;
 
-        if (strstr(buff, "\r\n\r\n") == 0) break;
+        if (strstr(buff, "\r\n\r\n") != NULL) break;
     }
     printf("%s", message);
     free(message);
