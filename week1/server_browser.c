@@ -6,19 +6,11 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-#include <time.h>
-
-struct SinhVien {
-    char mssv[9];
-    char hoTen[64];
-    char ngaySinh[11];
-    float diemTrungBinh;
-};
 
 int main(int argc, char* argv[])
 {
     // Check enough arguments
-    if (argc != 3)
+    if (argc != 2)
     {
         printf("Missing arguments\n");
         exit(1);
@@ -35,7 +27,7 @@ int main(int argc, char* argv[])
     // Create struct sockaddr
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
     addr.sin_port = htons(atoi(argv[1]));
 
     // Bind socket to sockaddr
@@ -64,34 +56,31 @@ int main(int argc, char* argv[])
     }
     printf("Client has connected: %s:%d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
     
-    // Write client's message to file
-    char *filename = argv[2];
-    FILE *f = fopen(filename, "a");
-    if (f == NULL)
-    {
-        printf("Open file failed\n");
-        exit(1);
-    }
-
-    int ret;
-    time_t t;
-    t = time(NULL);
-    struct tm tm = *localtime(&t);
+    // Receive Message From Browser
     char buff[512];
+    char *message = NULL;
+    int size;
     while (1)
     {
-        struct SinhVien sv;    
-        ret = recv(clientSocket, &sv, sizeof(sv), 0);
+        int ret = recv(clientSocket, buff, sizeof(buff), 0);
         if (ret <= 0) break;
 
-        sprintf(buff, "%s:%d %d-%d-%d %d:%d:%d %s %s %s %.2f\n", 
-        inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
-        tm.tm_hour, tm.tm_min, tm.tm_sec, sv.mssv, sv.hoTen, sv.ngaySinh, sv.diemTrungBinh);
+        message = realloc(message, size + ret + 1);
+        memcpy(message + size, buff, ret);
+        size += ret;
 
-        printf("%s", buff);
-        fwrite(buff, 1, strlen(buff), f);
+        if (strstr(buff, "\r\n\r\n") == 0) break;
     }
-    fclose(f);
+    printf("%s", message);
+    free(message);
+
+    // Send message to browser
+    char *m = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><body><h1>Hello World</h1></body></html>";
+    if (send(clientSocket, m, strlen(m), 0) == -1)
+    {
+        printf("Send Failed\n");
+        exit(1);
+    }
 
     // Close
     close(clientSocket);

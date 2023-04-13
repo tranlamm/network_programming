@@ -1,0 +1,81 @@
+TCP Socket Application:
+
+----------------------------------------SERVER----------------------------------------
+
+1.  socket(): tao socket truoc khi gui nhan du lieu
+
+int socket(int domain(AF_INET || AF_INET6), int type(SOCK_STREAM || SOCK_DGRAM), int protocol(IPPROTO_TCP || IPPROTO_UDP))
+• Biến errno trả về mã lỗi xảy ra gần nhất (cần khai báo thư viện errno.h)
+• Hàm strerror(int errnum) trả về chuỗi ký tự mô tả mã lỗi (thư viện string.h)
+• Hàm perror(const char *s) in ra chuỗi ký tự mô tả mã lỗi gần nhất, s là chuỗi ký tự tiền tố, có thể bằng NULL (thư viện stdio.h)
+
+2. bind(): gan socket voi cau truc dia chi trong ung dung server
+int bind (
+    int sockfd, // mô tả của socket
+    const struct sockaddr *addr, // con trỏ cấu trúc địa chỉ
+    socklen_t addrlen // độ dài cấu trúc địa chỉ
+)
+
+3. listen(): chuyen ket noi sang trang thai cho ket noi
+int listen (
+    int fd, // mô tả của socket
+    int n // chiều dài hàng đợi chờ kết nối
+)
+
+4. accept(): chap nhan ket noi dang nam trong hang doi 
+int accept (
+    int sockfd, // socket chờ kết nối đã được khởi tạo
+    struct sockaddr *addr, // con trỏ địa chỉ client
+    socklen_t *addrlen // con trỏ độ dài địa chỉ client
+)
+
+5. send() / write(): truyen du lieu tren socket
+ssize_t send (
+    int sockfd, // socket ở trạng thái đã kết nối
+    const void *buf, // buffer chứa dữ liệu cần gửi
+    size_t len, // số byte cần gửi
+    int flags // cờ quy định cách truyền, mặc định là 0
+)
+ssize_t write (
+    int fd, // socket ở trạng thái đã kết nối
+    const void *buf, // buffer chứa dữ liệu cần gửi
+    size_t n // số byte cần gửi
+)
+
+6. recv() / read(): nhan du lieu tu socket
+ssize_t recv (
+    int sockfd, // socket ở trạng thái đã kết nối
+    void *buf, // buffer chứa dữ liệu sẽ nhận được
+    size_t n, // số byte muốn nhận (độ dài của buffer)
+    int flags // cờ quy định cách nhận, mặc định là 0
+)
+ssize_t read (
+    int fd, // socket ở trạng thái đã kết nối
+    void *buf, // buffer chứa dữ liệu sẽ nhận được
+    size_t nbytes // số byte muốn nhận (độ dài của buffer)
+)
+
+7. close() / shutdown(): dong ket noi
+int close (
+    int sockfd // socket cần đóng kết nối
+)
+int shutdown (
+    int sockfd, // socket cần đóng kết nối
+    int how, // cách thức đóng kết nối
+)
+• SHUT_RD: không nhận thêm dữ liệu
+• SHUT_WR: không truyền thêm dữ liệu
+• SHUT_RDWR: không truyền và nhận thêm dữ liệu
+
+----------------------------------------CLIENT----------------------------------------
+
+1. socket()
+2. connect()
+int connect (
+    int sockfd, // socket đã được tạo
+    const struct sockaddr *addr, // con trỏ địa chỉ server
+    socklen_t addrlen // độ dài cấu trúc địa chỉ
+)
+3. send()
+4. recv()
+5. close()
