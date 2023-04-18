@@ -47,7 +47,7 @@ int main(int argc, char* argv[])
         if (ret <= 0) break;
 
         if (sendto(clientSocket, buff, ret, 0, (struct sockaddr *)&addr, sizeof(addr)) == -1) break;
-        printf("Sended\n");
+        printf("%d bytes have been send\n", ret);
     }
     fclose(f);
 

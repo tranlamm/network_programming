@@ -3,9 +3,12 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+
+#define TIME_OUT 9
 
 int main(int argc, char* argv[])    
 {
@@ -22,6 +25,15 @@ int main(int argc, char* argv[])
     if (serverSocket == -1)
     {
         perror("Create Socket Failed\n");
+        exit(1);
+    }
+
+    // Set timeout for socket
+    struct timeval tv;
+    tv.tv_sec = TIME_OUT;
+    tv.tv_usec = 0;
+    if (setsockopt(serverSocket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        perror("Error");
         exit(1);
     }
 
@@ -56,13 +68,16 @@ int main(int argc, char* argv[])
     {
         ret = recvfrom(serverSocket, buff, sizeof(buff), 0, (struct sockaddr *)&clientAddr, &size);
         if (ret <= 0)
-        {
-            printf("Receive failed\n");
+            break;
+
+        // Reset the timeout
+        if (setsockopt(serverSocket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+            perror("Error");
             break;
         }
+
         fwrite(buff, 1, ret, f);
         printf("Receive %d bytes message from: %s:%d\n", ret, inet_ntoa(clientAddr.sin_addr), clientAddr.sin_port);
-        break; // break to fclose so that can write to the file
     }
     fclose(f);
 
