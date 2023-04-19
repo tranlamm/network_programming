@@ -83,6 +83,7 @@ int main(int argc, char* argv[])
 
     // Close socket
     close(serverSocket);
+    printf("Time out!\n");
     printf("Socket closed\n");
     return 0;
 }

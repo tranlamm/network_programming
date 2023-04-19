@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
 {
     // Check enough arguments
     // Arguments contain run_file_name, port_number, write_file_name 
-    if (argc != 3)
+    if (argc != 2)
     {
         printf("Not enough arguments\n");
         exit(1);
@@ -103,6 +103,7 @@ int main(int argc, char* argv[])
 
     // Close socket
     close(serverSocket);
+    printf("Time out!\n");
     printf("Socket closed\n");
     return 0;
 }
