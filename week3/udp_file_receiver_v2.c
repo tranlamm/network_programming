@@ -57,9 +57,10 @@ int main(int argc, char* argv[])
     struct sockaddr_in clientAddr;
     int size = sizeof(clientAddr);
 
-    // This solution just seperate sender based on the port number
-    // You can extend to 2-D matrix (shape (4294967296, 65536)) to seperate sender based on ip address + port number
+    // This solution just identify sender based on the port number
+    // You can extend to 2-D matrix (shape (4294967296, 65536)) to identify sender based on ip address + port number
     // Or you can hash the key (contains ip + port) to save the memory
+    // Or you can implement a data structure like map in STL in C++
     bool clientPort[65536];
     memset(clientPort, 0, 65536);
     FILE *f[65536];
