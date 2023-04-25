@@ -1,0 +1,65 @@
+Two processing modes -------------------------------------------
+
+1. Blocking
+
+2. Non-blocking
+
+unsigned long ul = 1;
+ioctl(socket_fd, FIONBIO, &ul)
+
+Architecture ---------------------------------------------------
+
+1. Iterative server: Server xử lý tuần tự từng yêu cầu của từng client
+
+2. Multiplexing: Phân kênh/Dồn kênh: Dùng hàm select để chở tất cả các sự kiện (blocking)
+- trả về kết quả khi có sự kiện xảy ra / timeout
+
+------------------------------------------------
+#include <sys/select.h>
+int select (int nfds, fd_set *readfds,
+    fd_set *writefds, fd_set *exceptfds,
+    struct timeval *timeout)
+------------------------------------------------
+
+• nfds: số mô tả socket lớn nhất cộng 1 được gán vào 3 tập hợp 
+(không vượt quá FD_SETSIZE)
+• readfds: tập các socket chờ sự kiện đọc
+• writefds: tập các socket chờ sự kiện ghi
+• exceptfds: tập các socket chờ sự kiện ngoại lệ hoặc lỗi
+• timeout: thời gian chờ các sự kiện
+• NULL – chờ với thời gian vô hạn
+• 0 – không chờ sự kiện nào
+• > 0 – chờ với thời gian xác định
+
+    Giá trị trả về:
+• Thành công: số lượng socket xảy ra sự kiện
+• Hết thời gian chờ: 0
+• Bị lỗi: -1
+
+    Điều kiện thành công của hàm select()
+• Một trong các socket của tập readfds nhận dữ liệu hoặc kết
+nối bị đóng, bị hủy hoặc có yêu cầu kết nối.
+• Một trong các socket của tập writefds có thể gửi dữ liệu,
+hoặc hàm connect thành công trên socket non-blocking.
+• Một trong các socket của tập exceptfds nhận dữ liệu OOB,
+hoặc connect thất bại.
+
+• fd_set là mảng các bit mô tả trạng thái sự kiện của các socket.
+
+------------------------------------------------
+    Các macro được sử dụng để thực hiện các thao tác với tập fd_set:
+void FD_CLR(int fd, fd_set *set);
+=> Xóa fd ra khỏi tập set
+int FD_ISSET(int fd, fd_set *set);
+=> Kiểm tra sự kiện của fd xảy ra với tập set
+void FD_SET(int fd, fd_set *set);
+=> Gắn fd vào tập set
+void FD_ZERO(fd_set *set);
+=> Xóa tất cả các socket khỏi tập set
+
+struct timeval
+{
+    time_t tv_sec; /* Seconds. */
+    suseconds_t tv_usec; /* Microseconds. */
+};
+------------------------------------------------
