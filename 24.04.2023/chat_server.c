@@ -102,7 +102,7 @@ int main(int argc, char* argv[])
             numberOfClients++;
 
             // Ask for client name
-            send(clientSocket, "Enter Name:", 11, 0);
+            send(clientSocket, "Please enter your name (client_id:client_name)", 46, 0);
         }
 
         for (int i = 0; i < numberOfClients; ++i)
@@ -137,7 +137,7 @@ int main(int argc, char* argv[])
                     else
                     {
                         // Wrong format
-                        send(fd, "Enter Name:", 11, 0);
+                        send(fd, "Please enter your name (client_id:client_name)", 46, 0);
                     }
                 }
                 else    // Client has already had a name

@@ -11,7 +11,7 @@
 int main(int argc, char* argv[])
 {
     // Check enough arguments
-    // Arguments contains ./run_file_name + ip address + port
+    // Argument contains ./run_file_name + id address + port
     if (argc != 3)
     {
         printf("Missing arguments\n");
@@ -37,19 +37,20 @@ int main(int argc, char* argv[])
         printf("Connecting failed\n");
         exit(1);
     }
+    printf("Connected to server\n");
 
-    char buff[512];
+    // Chatting
     fd_set fdread;
-    int maxFd, ret;
+    char buff[512];
+    int ret;
 
     while (1)
     {
         FD_ZERO(&fdread);
         FD_SET(STDIN_FILENO, &fdread);
         FD_SET(clientSocket, &fdread);
-        maxFd = clientSocket + 1;   // STDIN_FILENO is 0
 
-        ret = select(maxFd + 1, &fdread, NULL, NULL, NULL);
+        ret = select(clientSocket + 2, &fdread, NULL, NULL, NULL);
 
         if (ret <= 0)
         {
@@ -61,25 +62,19 @@ int main(int argc, char* argv[])
         {
             fgets(buff, sizeof(buff), stdin);
             buff[strlen(buff) - 1] = 0;
-
-            // exit signal
-            if (strncmp(buff, "exit", 4) == 0) break;
-            
-            // send message to server
             send(clientSocket, buff, strlen(buff), 0);
         }
 
         if (FD_ISSET(clientSocket, &fdread))
         {
-            ret = recv(clientSocket, buff, sizeof(buff), 0);            
-            // Disconnected
-            if (ret <= 0) break;
-            
+            ret = recv(clientSocket, buff, sizeof(buff), 0);
+            if (ret <= 0) break;    // Disconnected
             buff[ret] = 0;
             printf("%s\n", buff);
         }
     }
 
+    // Close socket
     close(clientSocket);
     printf("Socket closed\n");
     return 0;
