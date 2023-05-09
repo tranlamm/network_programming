@@ -14,6 +14,7 @@ Architecture ---------------------------------------------------
 2. Multiplexing: Phân kênh/Dồn kênh: Dùng hàm select để chở tất cả các sự kiện (blocking)
 - trả về kết quả khi có sự kiện xảy ra / timeout
 
+                SELECT
 ------------------------------------------------
 #include <sys/select.h>
 int select (int nfds, fd_set *readfds,
@@ -62,4 +63,28 @@ struct timeval
     time_t tv_sec; /* Seconds. */
     suseconds_t tv_usec; /* Microseconds. */
 };
+
+
+                POLL
 ------------------------------------------------
+STDIN_FILENO: stdin socket
+
+#include <poll.h>
+int poll (
+    struct pollfd *fds, // Tập hợp các mô tả cần đợi sự kiện
+    nfds_t nfds, // Số lượng các mô tả, không vượt quá 
+    RLIMIT_NOFILE
+    int timeout // Thời gian chờ theo ms. Nếu bằng -1 thì hàm 
+    chỉ trả về kết quả khi có sự kiện xảy ra.
+) => Hàm trả về số lượng cấu trúc có sự kiện xảy ra nếu 
+thành công, trả về -1 nếu bị lỗi. Trả về 0 nếu hết giờ.
+
+struct pollfd {
+    int fd; // Mô tả (socket) cần thăm dò
+    short int events; // Mặt nạ sự kiện cần kiểm tra
+    short int revents; // Mặt nạ sự kiện đã xảy ra
+}
+
+• Một số mặt nạ sự kiện hay dùng:
+    • POLLIN/POLLRDNORM – Có kết nối / có dữ liệu để đọc
+    • POLLERR – Lỗi đọc / ghi dữ liệu
