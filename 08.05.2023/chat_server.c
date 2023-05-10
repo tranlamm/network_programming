@@ -7,6 +7,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <poll.h>
+#include <stdbool.h>
 #include <time.h>
 
 #define MAX_USER 64
@@ -65,13 +66,12 @@ int main(int argc, char* argv[])
     int nfds = 1;
 
     // Declare user's id array
-    char* users_id[MAX_USER];
     int users_socket[MAX_USER];
+    char* users_id[MAX_USER];
     int userNumber = 0;
 
-    char buff[256];
-
     // Listening
+    char buff[256];
     while (1) 
     {
         int ret = poll(fds, nfds, -1);
@@ -81,20 +81,32 @@ int main(int argc, char* argv[])
             break;
         }
 
-        // Has connect request
+        // Has connection request
         if (fds[0].revents & POLLIN) 
         {
             int clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &clientAddrLength);
-            printf("Client has connected: %s:%d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
-            
-            // Add new client to poll
-            fds[nfds].fd = clientSocket;
-            fds[nfds].events = POLLIN;
-            nfds++;
 
-            // Send message
-            char *message = "Please sign in to continue (client_id: client_name)";
-            send(clientSocket, message, strlen(message), 0);
+            if (userNumber < MAX_USER)
+            {
+                printf("Client has connected: %s:%d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
+                
+                // Add new client to poll
+                fds[nfds].fd = clientSocket;
+                fds[nfds].events = POLLIN;
+                nfds++;
+
+                // Send message
+                char *message = "Please sign in to continue (client_id: client_name)\n";
+                send(clientSocket, message, strlen(message), 0);
+            }
+            else
+            {
+                // Full connection
+                printf("Exceed maxmimum connection\n");
+                char *message = "Exceed maxmimum connection\n";
+                send(clientSocket, message, strlen(message), 0);
+                close(clientSocket);
+            }
         }
 
         for (int i = 1; i < nfds; ++i)
@@ -104,11 +116,13 @@ int main(int argc, char* argv[])
                 int client = fds[i].fd;
                 ret = recv(client, buff, sizeof(buff), 0);
                 buff[ret] = 0;
+                if (buff[ret - 1] == '\n')
+                    buff[ret - 1] = 0;
+                printf("Receive from %d: %s\n", client, buff);
 
+                // Client has disconnected
                 if (ret <= 0)
                 {
-                    // Client has disconnected
-
                     // delete client in user array
                     int j = 0;
                     for (; j < userNumber; ++j)
@@ -127,6 +141,7 @@ int main(int argc, char* argv[])
                     // close socket
                     close(client);
 
+                    printf("Client %d has disconnected\n", client);
                     i--;
                     continue;
                 }
@@ -146,41 +161,101 @@ int main(int argc, char* argv[])
                     
                     if (ret == 2)
                     {
+                        // message right format
                         if (strcmp("client_id:", cmd) == 0)
                         {
-                            // message right format
+                            bool flag = false;
+                            for (int tmp = 0; tmp < userNumber; ++tmp)
+                            {
+                                if (strcmp(users_id[tmp], id) == 0)
+                                {
+                                    // client_id is existed
+                                    char *message = "Client id has already existed\n";
+                                    send(client, message, strlen(message), 0);
+                                    flag = true;
+                                    break;
+                                }
+                            }
+                            if (flag) continue;
+
+                            // client_id is not existed
                             users_socket[userNumber] = client;
                             users_id[userNumber] = malloc(strlen(id) + 1);
                             strcpy(users_id[userNumber], id);
                             userNumber++;
-                            send(client, "Login successfully", 18, 0);
+                            char *message = "Login successfully (format to chat private: PRIVATE_TO_clientid message)\n";
+                            send(client, message, strlen(message), 0);
                             continue;
                         }
                     }
 
                     // message wrong format
-                    char *message = "Please sign in to continue (client_id: client_name)";
+                    char *message = "Wrong format\n";
                     send(client, message, strlen(message), 0);
                 }
                 else
                 {
                     // Logged in
-                    char message[256];
-                    sprintf(message, "%04d/%02d/%02d %02d:%02d:%02d ", tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, 
-                    tm.tm_hour, tm.tm_min, tm.tm_sec);
-                    strcat(message, users_id[j]);
-                    strcat(message, ": ");
-                    strcat(message, buff);
-
-                    for (int k = 0; k < userNumber; ++k)
+                    if (strncmp("PRIVATE_TO_", buff, 11) == 0)
                     {
-                        if (k != j)
+                        // private message
+                        char* tmp = strchr(buff, ' ');
+                        if (tmp == NULL)
                         {
-                            send(users_socket[k], message, strlen(message), 0);
+                            // Wrong format
+                            char *message = "Wrong format to private chat (PRIVATE_TO_clientid message)\n";
+                            send(client, message, strlen(message), 0);
+                            continue;
                         }
+
+                        int size = tmp - buff - 11;                        
+                        char id[32];
+                        memcpy(id, buff + 11, size);
+                        id[size] = 0;
+
+                        int des = 0;
+                        for (des; des < userNumber; ++des)
+                        {
+                            if (strcmp(users_id[des], id) == 0)
+                                break;    
+                        }
+
+                        if (des == userNumber)
+                        {
+                            // Can't find client_id
+                            char *message = "Client id do not exist\n";
+                            send(client, message, strlen(message), 0);
+                            continue;
+                        }
+
+                        char message[512];
+                        strcpy(message, users_id[j]);
+                        strcat(message, ":");
+                        strcat(message, tmp);
+                        strcat(message, "\n");
+                        send(users_socket[des], message, strlen(message), 0);
+                    }
+                    else
+                    {
+                        // boardcast message
+                        char message[256];
+                        sprintf(message, "%04d/%02d/%02d %02d:%02d:%02d ", tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, 
+                        tm.tm_hour, tm.tm_min, tm.tm_sec);
+                        strcat(message, users_id[j]);
+                        strcat(message, ": ");
+                        strcat(message, buff);
+                        strcat(message, "\n");
+                        
+                        for (int k = 0; k < userNumber; ++k)
+                        {
+                            if (k != j)
+                            {
+                                send(users_socket[k], message, strlen(message), 0);
+                            }
+                        }
+
                     }
                 }
-               
             }
         }
     }

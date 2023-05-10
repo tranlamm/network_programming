@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-#include <poll.h>
+#include <sys/select.h>
 
 int main(int argc, char* argv[])
 {
@@ -37,48 +37,45 @@ int main(int argc, char* argv[])
         printf("Connecting failed\n");
         exit(1);
     }
-    printf("Connect Successfully\n");
 
-    // Declare pollfd array
-    struct pollfd fds[2];
-    fds[0].fd = STDIN_FILENO;
-    fds[0].events = POLLIN;
-    fds[1].fd = clientSocket;
-    fds[1].events = POLLIN;
+    // Declare fdset
+    fd_set fdread, fdclone;
+    FD_ZERO(&fdread);
+    FD_SET(STDIN_FILENO, &fdread);
+    FD_SET(clientSocket, &fdread);
 
     // Listening
     char buff[256];
-    while (1) 
+    int ret;
+    while (1)
     {
-        int ret = poll(fds, 2, -1);
-        if (ret < 0)
+        fdclone = fdread;
+        ret = select(clientSocket + 1, &fdclone, NULL, NULL, NULL);
+
+        if (ret <= 0)
         {
-            printf("Poll Failed\n");
+            printf("Select Failed\n");
             break;
         }
 
-        // Scanf
-        if (fds[0].revents & (POLLIN | POLLERR))
+        if (FD_ISSET(STDIN_FILENO, &fdclone))
         {
             fgets(buff, sizeof(buff), stdin);
-            if (buff[strlen(buff) - 1] == '\n')
-                buff[strlen(buff) - 1] = 0;
+            buff[strlen(buff) - 1] = 0;
             send(clientSocket, buff, strlen(buff), 0);
         }
 
-        // Receive
-        if (fds[1].revents & (POLLIN | POLLERR))
+        if (FD_ISSET(clientSocket, &fdclone))
         {
             ret = recv(clientSocket, buff, sizeof(buff), 0);
             buff[ret] = 0;
-
-            // Disconnected
             if (ret <= 0)
+                // Disconnected
                 break;
 
             printf("%s", buff);
         }
-    }
+    } 
     
 
     // Close socket
