@@ -4,7 +4,6 @@
 #include <netdb.h>
 
 
-
 -------------------------------------------------------------------------------------
 
 const: 
@@ -28,9 +27,9 @@ struct sockaddr_in6: struct of socket ipv6
 
 function:
     IPv4:
-        in_addr_t inet_addr(const char *c): string to in_addr_t ipv4 address
+        in_addr_t inet_addr(const char *c): string to in_addr_t ipv4 address ------------- (string => network order)
         int inet_aton(const char *c, struct in_addr *inp): string to struct in_addr
-        char *inet_ntoa(struct in_addr): struct in_addr to string
+        char *inet_ntoa(struct in_addr): struct in_addr to string ------------- (network order => string)
     Network order: big-endian
     Host order: little-endian
         uint32_t htonl(uint32_t hostlong): little->big

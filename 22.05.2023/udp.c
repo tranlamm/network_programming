@@ -47,6 +47,8 @@ int main(int argc, char *argv[])
 
     // Listening
     printf("Chatting ...\n");
+    struct sockaddr_in log_addr;
+    int size = sizeof(log_addr);
     char buff[256];
     while (1)
     {
@@ -68,10 +70,10 @@ int main(int argc, char *argv[])
 
         if (FD_ISSET(receiver, &fdtest))
         {
-            ret = recvfrom(receiver, buff, sizeof(buff), 0, NULL, NULL);
+            ret = recvfrom(receiver, buff, sizeof(buff), 0, (struct sockaddr*)&log_addr, &size);
             if (ret < sizeof(buff))
                 buff[ret] = 0;
-            printf("Received: %s\n", buff);
+            printf("Receive from %s:%d: %s\n", inet_ntoa(log_addr.sin_addr), ntohs(log_addr.sin_port), buff);
         }
     }
 
