@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
     {
         int ret = recv(client_socket, buffer, sizeof(buffer), 0);
         if (ret <= 0) break;
-        if (ret < sizeof(buffer))
+        buffer[ret] = 0;
         printf("%s", buffer);
     }
 

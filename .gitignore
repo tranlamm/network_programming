@@ -53,5 +53,5 @@ dkms.conf
 .vscode
 
 # Text 
-*.txt
+# *.txt
 

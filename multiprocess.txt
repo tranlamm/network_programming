@@ -1,0 +1,86 @@
+• fork() – tạo tiến trình mới
+• getpid() – trả về ID của tiến trình hiện tại
+• exit() – kết thúc tiến trình đang thực hiện
+• wait() – đợi tiến trình con kết thúc
+• kill() – kết thúc tiến trình con từ tiến trình cha
+
+ps -e -o pid,tty,cmd,stat --------------------------- logging all process
+
+---------- fork
+#include <unistd.h>
+pid_t fork (void);
+
+Hàm fork() trả về 2 giá trị trong 2 tiến trình:
+• Trả về ID của tiến trình con mới được tạo trong tiến
+trình cha (là tiến trình gọi hàm fork())
+• Trả về 0 trong tiến trình con
+Sử dụng giá trị ID trả về để phân biệt tiến trình cha và
+tiến trình con mới được tạo ra.
+Trong trường hợp bị lỗi, hàm trả về -1, xác định lỗi thông
+qua errno.
+
+
+---------- exit 
+#include <unistd.h>
+void exit (int status);
+Hàm exit() kết thúc tiến trình hiện tại (là tiến trình gọi
+hàm) kèm theo trạng thái kết thúc.
+Trạng thái kết thúc có thể chọn 1 trong 2 hằng số sau:
+EXIT_SUCCESS 
+EXIT_FAILURE 
+
+
+---------- wait
+#include <sys/wait.h>
+pid_t wait (int *status);
+Hàm đợi cho đến khi một trong các tiến trình con kết
+thúc.
+Hàm trả về ID của tiến trình con vừa kết thúc, trả về -1
+nếu bị lỗi.
+Con trỏ status chứa trạng thái kết thúc của tiến trình
+con (EXIT_SUCCESS hoặc EXIT_FAILURE).
+Nếu không có tiến trình con nào, hàm trả về -1 với mã
+lỗi là ECHILD.
+
+
+---------- kill
+#include <sys/types.h>
+#include <signal.h>
+int kill (pid_t pid, int sig);
+int killpg (int pgrp, int sig);
+Hàm kill() thực hiện việc gửi tín hiệu sig đến tiến trình
+pid. Có thể được sử dụng để kết thúc tiến trình với sig là
+SIGKILL.
+Hàm killpg() thực hiện việc gửi tín hiệu sig đến một
+nhóm các tiến trình. Có thể được sử dụng để kết thúc
+tiến trình cha và các tiến trình con với pgrp là 0 và sig là
+SIGKILL. (1 process goi killpg => kill het tat ca cac process)
+
+
+---------- signal handle
+• Sử dụng hàm signal() để đăng ký việc xử lý khi sự kiện SIGCHLD xảy ra.
+signal(SIGCHLD, signalHandler);
+=> Khi có tín hiệu SIGCHLD được gửi đến, hàm xử lý sự kiện signalHandler() được gọi.
+=> Cần gọi hàm signal() trước hàm fork().
+• Hàm xử lý sự kiện
+void signalHandler(int signo) {
+    int stat;
+    pid_t pid = wait(&stat);
+    printf("Child %d terminated.\n", pid);
+}
+
+signal(SIGCHLD, signalHandler);
+
+
+---------- preforking
+• Việc tạo một tiến trình cho mỗi client kết nối đến
+server gây tốn kém về thời gian và tài nguyên của hệ
+thống.
+• Để hạn chế việc tạo quá nhiều tiến trình, kỹ thuật
+preforking có thể được áp dụng, đặc biệt với những
+server xử lý yêu cầu của các client trong thời gian
+ngắn.
+• Ứng dụng tạo sẵn một số giới hạn các process, mỗi
+process sẽ thực hiện lặp lại các công việc: chờ kết nối,
+xử lý yêu cầu và trả kết quả cho client.
+• Mỗi process sẽ xử lý luân phiên cho một client.
