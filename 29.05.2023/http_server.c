@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#define NUMBER_PROCESS 2
+#define NUMBER_PROCESS 9
 
 int main(int argc, char* argv[])
 {

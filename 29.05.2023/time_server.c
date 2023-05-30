@@ -87,6 +87,8 @@ int main(int argc, char* argv[])
                 if (ret <= 0)
                     break;
                 buff[ret] = 0;
+                if (buff[ret - 1] == '\n')
+                    buff[ret - 1] = 0;
                 printf("Receive: %s\n", buff);
 
                 ret = sscanf(buff, "%s%s%s", cmd, format, tmp);
