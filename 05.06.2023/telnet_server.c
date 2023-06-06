@@ -13,9 +13,6 @@
 #include <stdbool.h>
 
 char file_db[64], file_cmd[64];
-int clients[64];
-int numberOfClients = 0;
-pthread_mutex_t numberOfClients_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t file_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 bool login(char *file, char *acc, char *pass)
@@ -125,22 +122,6 @@ void *threadPerClient(void *arg)
     }
 
     // Close client
-    // Mutex
-    pthread_mutex_lock(&numberOfClients_mutex);
-    
-    for (int i = 0; i < numberOfClients; i++)
-    {
-        if (clients[i] == client)
-        {
-            clients[i] = clients[numberOfClients - 1];
-            numberOfClients--;
-            break;
-        }
-    }
-
-    pthread_mutex_unlock(&numberOfClients_mutex);
-    // End mutex
-
     printf("Client %d disconnected\n", client);
     close(client);
 }
@@ -196,13 +177,6 @@ int main(int argc, char* argv[])
     {
         int clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &clientAddrLength);
         printf("Client has connected: %s:%d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
-        
-        // Mutex
-        pthread_mutex_lock(&numberOfClients_mutex);
-        clients[numberOfClients] = clientSocket;
-        numberOfClients++;
-        pthread_mutex_unlock(&numberOfClients_mutex);
-        // End mutex
 
         pthread_create(&thread_id, NULL, threadPerClient, (void *)&clientSocket);
         pthread_detach(thread_id);

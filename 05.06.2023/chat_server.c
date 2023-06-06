@@ -13,7 +13,9 @@
 #include <stdbool.h>
 #include <time.h>
 
-int clients[64];
+#define MAX_USER 64
+
+int clients[MAX_USER];
 int numberOfClients = 0;
 pthread_mutex_t numberOfClients_mutex = PTHREAD_MUTEX_INITIALIZER;
 time_t t;
@@ -153,17 +155,29 @@ int main(int argc, char* argv[])
     while (1) 
     {
         int clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &clientAddrLength);
-        printf("Client has connected: %s:%d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
         
-        // Mutex
-        pthread_mutex_lock(&numberOfClients_mutex);
-        clients[numberOfClients] = clientSocket;
-        numberOfClients++;
-        pthread_mutex_unlock(&numberOfClients_mutex);
-        // End mutex
+        if (numberOfClients < MAX_USER)
+        {
+            printf("Client has connected: %s:%d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
+            
+            // Mutex
+            pthread_mutex_lock(&numberOfClients_mutex);
+            clients[numberOfClients] = clientSocket;
+            numberOfClients++;
+            pthread_mutex_unlock(&numberOfClients_mutex);
+            // End mutex
 
-        pthread_create(&thread_id, NULL, threadPerClient, (void *)&clientSocket);
-        pthread_detach(thread_id);
+            pthread_create(&thread_id, NULL, threadPerClient, (void *)&clientSocket);
+            pthread_detach(thread_id);
+        }
+        else
+        {
+            // Full connection
+            printf("Exceed maximum connection\n");
+            char *message = "Excees maximum connection\n";
+            send(clientSocket, message, strlen(message), 0);
+            close(clientSocket);
+        }
     }
 
     // Close
