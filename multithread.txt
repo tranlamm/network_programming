@@ -1,0 +1,49 @@
+• pthread_create(): tạo luồng mới
+• pthread_join(): đợi luồng kết thúc
+• pthread_self(): trả về ID của luồng, được gọi bên trong
+luồng
+• pthread_detach(): đánh dấu luồng ở trạng thái “tách
+rời”, khi luồng kết thúc ở trạng thái này các tài nguyên
+của luồng sẽ được tự giải phóng.
+• pthread_exit(): dừng luồng
+
+gcc -o2 -pthread file.c -o file.o
+
+------------------------------------------------------------ pthread_create 
+
+#include <pthread.h>
+int pthread_create (
+    pthread_t *newthread, // Trả về ID của luồng
+    const pthread_attr_t *attr, // Tham số tạo luồng, mặc định NULL
+    void *(*start_routine) (void *), // Hàm thực thi
+    void *arg // Tham số truyền vào hàm thực thi
+)
+=> Hàm trả về 0 nếu thành công, trả về mã lỗi nếu thất 
+bại.
+
+------------------------------------------------------------ pthread_join 
+
+int pthread_join (
+    pthread_t thread_id, // ID của luồng cần đợi
+    void **thread_return // Trạng thái kết thúc của luồng
+)
+Hàm pthread_join() đợi cho đến khi luồng kết thúc, nếu
+luồng đã kết thúc rồi thì hàm trả về kết quả ngay lập tức.
+Hàm trả về 0 nếu thành công, trả về mã lỗi nếu thất bại.
+
+
+------------------------------------------------------------ pthread_mutex 
+
+• Hạn chế sử dụng biến toàn cục, nên sử dụng biến cục 
+bộ khai báo trong hàm thực thi của luồng.
+• Quản lý việc truy nhập các tài nguyên dùng chung => 
+Sử dụng kỹ thuật Mutex (Mutual Exclusion)
+
+pthread_mutex_t counter_mutex = PTHREAD_MUTEX_INITIALIZER;
+=> Khởi tạo đối biến mutex
+int pthread_mutex_lock (pthread_mutex_t *mutex)
+=> Khóa biến mutex. Nếu biến này đang được khóa bởi luồng 
+khác, thì hàm sẽ đợi cho đến khi biến được mở khóa bởi luồng 
+đó
+int pthread_mutex_unlock (pthread_mutex_t *mutex)
+=> Mở khóa biến mutex
