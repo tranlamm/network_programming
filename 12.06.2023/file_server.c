@@ -10,23 +10,20 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <dirent.h>
-#include <stdbool.h>
 
-void signalHandler(int signo) 
+void signalHandler(int signo)
 {
     int stat;
-    pid_t pid = wait(&stat);
+    int pid = wait(&stat);
     if (stat == EXIT_SUCCESS)
-    {
-        printf("Child %d terminated\n", pid);
-    }
+        printf("Client %d terminated\n", pid);
 }
 
 int main(int argc, char* argv[])
 {
     // Check enough arguments
-    // Argument contains ./run_file_name + port
-    if (argc != 2)
+    // Argument contains ./run_file_name + port + directory_path
+    if (argc != 3)
     {
         printf("Missing arguments\n");
         exit(1);
@@ -67,7 +64,6 @@ int main(int argc, char* argv[])
     
     // Listening
     signal(SIGCHLD, signalHandler);
-    char buff[512];
     while (1)
     {
         int clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &clientAddrLength);
@@ -75,79 +71,77 @@ int main(int argc, char* argv[])
     
         if (fork() == 0)
         {
+            // Child process
             close(serverSocket);
-            char *msg = "Connecting successfully\n";
-            send(clientSocket, msg, strlen(msg), 0);
+            
+            int file_numbers = 0;
+            char* file_list = malloc(1);
+            file_list[0] = '\0';
 
-            DIR *dir = opendir(".");
+            // Dirent to read all file in directory
+            DIR *dir = opendir(argv[2]);
             struct dirent *entry;
-            int count = 0;
-            char buff[1024];
-            char *file_list[512];
-
             while ((entry = readdir(dir)) != NULL)
             {
                 if (entry->d_type == DT_REG)
                 {
-                    file_list[count] = (char *) malloc(strlen(entry->d_name) + 1);
-                    strcpy(file_list[count], entry->d_name);
-                    count++;
+                    file_numbers++;
+                    file_list = realloc(file_list, strlen(file_list) + strlen(entry->d_name) + 3);
+                    strcat(file_list, entry->d_name);
+                    strcat(file_list, "\r\n\0");
                 }
             }
-            count--;
-            sprintf(buff, "OK %d\r\n", count);
-            for (int i = 0; i < count; ++i)
-            {
-                char tmp[64];
-                sprintf(tmp, "%s\r\n", file_list[i]);
-                strcat(buff, tmp);
-            }
-            strcat(buff, "\r\n");
 
-            if (count == 0)
+            if (file_numbers == 0)
             {
-                char *msg = "ERROR No files to download \r\n";
+                char *msg = "ERROR No files to download\n";
                 send(clientSocket, msg, strlen(msg), 0);
+                free(file_list);
                 close(clientSocket);
                 exit(EXIT_SUCCESS);
             }
-            else
+
+            // Send list of files
+            char buff[512];
+            sprintf(buff, "OK %d\r\n", file_numbers);
+            send(clientSocket, buff, strlen(buff), 0);
+            send(clientSocket, file_list, strlen(file_list), 0);
+            send(clientSocket, "\r\n", 2, 0);
+            free(file_list);
+
+            while (1)
             {
-                send(clientSocket, buff, strlen(buff), 0);
-                while (1)
+                int ret = recv(clientSocket, buff, sizeof(buff), 0);
+                if (ret <= 0)
+                    break;
+                buff[ret] = 0;
+                if (buff[ret - 1] == '\n')
+                    buff[ret - 1] = 0;
+
+                FILE *f = fopen(buff, "rb");
+                if (f == NULL)
                 {
-                    int ret = recv(clientSocket, buff, sizeof(buff), 0);
-                    if (ret <= 0)
-                        break;
-                    buff[ret] = 0;
-                    if (buff[ret - 1] == '\n')
-                        buff[ret - 1] = 0;
-
-                    FILE *f = fopen(buff, "rb");
-                    if (f == NULL)
-                    {
-                        char *msg = "ERROR No files to download\r\n";
-                        send(clientSocket, msg, strlen(msg), 0);
-                        fclose(f);
-                        continue;
-                    }
-
+                    char *msg = "ERROR files is not existed\n";
+                    send(clientSocket, msg, strlen(msg), 0);
+                }
+                else
+                {
+                    // Get size of file
                     fseek(f, 0, SEEK_END);
                     long file_size = ftell(f);
                     fseek(f, 0, SEEK_SET);
 
-                    char msg[32], buff[2048];
-                    sprintf(msg, "OK %ld\r\n", file_size);
-                    send(clientSocket, msg, strlen(msg), 0);
-
+                    sprintf(buff, "OK %ld\r\n", file_size);
+                    send(clientSocket, buff, strlen(buff), 0);
                     while (!feof(f))
                     {
                         ret = fread(buff, 1, sizeof(buff), f);
-                        if (ret <= 0) break;
+                        if (ret <= 0)
+                            break;
                         send(clientSocket, buff, ret, 0);
                     }
 
-                    send(clientSocket, "\r\n", 2, 0);
+                    send(clientSocket, "\r\n\r\n", 4, 0);
                     fclose(f);
                     break;
                 }
@@ -158,6 +152,7 @@ int main(int argc, char* argv[])
         }
         else
         {
+            // Main process
             close(clientSocket);
         }
     }
