@@ -21,7 +21,7 @@ pthread_mutex_t user_mutex = PTHREAD_MUTEX_INITIALIZER;
 void *threadProcessing(void *arg)
 {
     int socket = *(int *)arg;
-    bool isLogged = false;
+    bool isLogged = false, isDisconnected = false;
     char buff[256], sendMsg[512];
     char client_name[64];
 
@@ -64,7 +64,7 @@ void *threadProcessing(void *arg)
         else
         {
             pthread_mutex_lock(&user_mutex);
-            int idx;
+            int idx = -1;
             for (int i = 0; i < user_numbers; ++i)
             {
                 if (client[i] == socket)
@@ -72,6 +72,12 @@ void *threadProcessing(void *arg)
                     idx = i;
                     break;
                 }
+            }
+
+            if (idx == -1)
+            {
+                pthread_mutex_unlock(&user_mutex);
+                isDisconnected = true;
             }
 
             sprintf(sendMsg, "%s: %s\n", client_name, buff);
@@ -95,34 +101,39 @@ void *threadProcessing(void *arg)
     }
 
     // Disconnect
-    pthread_mutex_lock(&user_mutex);
-    int idx;
-    for (int i = 0; i < user_numbers; ++i)
+    if (!isDisconnected)
     {
-        if (client[i] == socket)
+        pthread_mutex_lock(&user_mutex);
+        int idx;
+        for (int i = 0; i < user_numbers; ++i)
         {
-            idx = i;
-            break;
+            if (client[i] == socket)
+            {
+                idx = i;
+                break;
+            }
         }
+        sprintf(sendMsg, "%s disconnected\n", client_name);
+        if (idx % 2 == 1)
+        {
+            send(client[idx - 1], sendMsg, strlen(sendMsg), 0);
+            idx--;
+        }
+        else
+        {
+            send(client[idx + 1], sendMsg, strlen(sendMsg), 0);
+        }
+        close(client[idx]);
+        close(client[idx + 1]);
+        printf("Client %d disconnected\n", client[idx]);
+        printf("Client %d disconnected\n", client[idx + 1]);
+        for (int i = idx; i < user_numbers - 2; ++i)
+        {
+            client[i] = client[i + 2];
+        }
+        user_numbers = user_numbers - 2;
+        pthread_mutex_unlock(&user_mutex);
     }
-    sprintf(sendMsg, "%s disconnected\n", client_name);
-    if (idx % 2 == 1)
-    {
-        send(client[idx - 1], sendMsg, strlen(sendMsg), 0);
-        idx--;
-    }
-    else
-    {
-        send(client[idx + 1], sendMsg, strlen(sendMsg), 0);
-    }
-    close(client[idx]);
-    close(client[idx + 1]);
-    for (int i = idx; i < user_numbers - 2; ++i)
-    {
-        client[i] = client[i + 2];
-    }
-    user_numbers -= 2;
-    pthread_mutex_unlock(&user_mutex);
 }
 
 int main(int argc, char* argv[])
