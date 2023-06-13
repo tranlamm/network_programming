@@ -78,6 +78,7 @@ void *threadProcessing(void *arg)
             {
                 pthread_mutex_unlock(&user_mutex);
                 isDisconnected = true;
+                break;
             }
 
             sprintf(sendMsg, "%s: %s\n", client_name, buff);
@@ -193,6 +194,7 @@ int main(int argc, char* argv[])
             client[user_numbers] = clientSocket;
             user_numbers++;
             pthread_create(&thread_id, NULL, threadProcessing, (void *)&clientSocket);
+            pthread_detach(thread_id);
 
             pthread_mutex_unlock(&user_mutex);
         }
