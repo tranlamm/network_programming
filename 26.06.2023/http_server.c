@@ -49,6 +49,7 @@ void *client_thread(void *param)
         return NULL;
     }
     buff[ret] = 0;
+    printf("\n%s\n\n", buff);
 
     if (strncmp(buff, "GET /get", 8) == 0)
     {
