@@ -346,12 +346,116 @@ bool kick(bool isLogged, char *value, int socket)
         }
     }
 
-    // Remove from arr
+    // Remove kicked_user from arr
+    char *tmp = client_name[index_sendto];
+    free(tmp);
+    client[index_sendto] = client[user_numbers - 1];
+    client_name[index_sendto] = client_name[user_numbers - 1];
+    client_name[user_numbers - 1] = NULL;
+    user_numbers--;
     
     pthread_mutex_unlock(&user_mutex);
     
     char *error = "100 OK\r\n";
     send(socket, error, strlen(error), 0);
+    return true;
+}
+
+bool topic(bool isLogged, char *value, int socket)
+{
+    if (!isLogged || strlen(value) == 0)
+    {
+        char *error = "999 UNKNOWN ERROR\r\n";
+        send(socket, error, strlen(error), 0);
+        return false;
+    }
+
+    pthread_mutex_lock(&user_mutex);
+    int index = -1;
+    for (int i = 0; i < user_numbers; ++i)
+    {
+        if (socket == client[i])
+        {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1)
+    {
+        char *error = "999 UNKNOWN ERROR\r\n";
+        send(socket, error, strlen(error), 0);
+        pthread_mutex_unlock(&user_mutex);
+        return false;
+    }
+
+    if (index != host)
+    {
+        char *error = "203 DENIED\r\n";
+        send(socket, error, strlen(error), 0);
+        pthread_mutex_unlock(&user_mutex);
+        return false;
+    }
+
+    char mess[256];
+    sprintf(mess, "TOPIC %s", value);
+    for (int i = 0; i < user_numbers; ++i)
+    {
+        if (socket != client[i] && client_name[i] != NULL)
+        {
+            send(client[i], mess, strlen(mess), 0);
+        }
+    }
+    pthread_mutex_unlock(&user_mutex);
+    
+    char *error = "100 OK\r\n";
+    send(socket, error, strlen(error), 0);
+    return true;
+}
+
+bool quit(bool isLogged, int socket)
+{
+    if (!isLogged)
+    {
+        char *error = "999 UNKNOWN ERROR\r\n";
+        send(socket, error, strlen(error), 0);
+        return false;
+    }
+
+    pthread_mutex_lock(&user_mutex);
+    int index = -1;
+    for (int i = 0; i < user_numbers; ++i)
+    {
+        if (socket == client[i])
+        {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1)
+    {
+        char *error = "999 UNKNOWN ERROR\r\n";
+        send(socket, error, strlen(error), 0);
+        pthread_mutex_unlock(&user_mutex);
+        return false;
+    }
+
+    // Remove from arr
+    client[index] = client[user_numbers - 1];
+    char *tmp = client_name[index];
+    free(tmp);
+    client_name[index] = client_name[user_numbers - 1];
+    client_name[user_numbers - 1] = NULL;
+    user_numbers--;
+    
+    // If node is host then reset host to user 0
+    if (index == host)
+        host = 0;
+    pthread_mutex_unlock(&user_mutex);
+
+    char *msg = "100 OK\r\n";
+    send(socket, msg, strlen(msg), 0);
     return true;
 }
 
@@ -367,7 +471,55 @@ void *threadProcessing(void *arg)
     {
         int ret = recv(socket, buff, sizeof(buff) - 1, 0);
         if (ret <= 0)
+        {
+            pthread_mutex_lock(&user_mutex);
+            int index = -1;
+            for (int i = 0; i < user_numbers; ++i)
+            {
+                if (socket == client[i])
+                {
+                    index = i;
+                    break;
+                }
+            }
+            
+            if (index == -1)
+            {
+                pthread_mutex_unlock(&user_mutex);
+                break;
+            }
+            client[index] = client[user_numbers - 1];
+            if (client_name[index] != NULL)
+            {
+                char *tmp = client_name[index];
+                free(tmp);
+            }
+            client_name[index] = client_name[user_numbers - 1];
+            client_name[user_numbers - 1] = NULL;
+            user_numbers--;
+            // If node is host then reset host to user 0
+            if (index == host)
+                host = 0;
+            pthread_mutex_unlock(&user_mutex);
+        }
+
+        pthread_mutex_lock(&user_mutex);
+        bool isInRoom = false;
+        for (int i = 0; i < user_numbers; ++i)
+        {
+            if (socket == client[i])
+            {
+                isInRoom = true;
+                break;
+            }
+        }
+        if (!isInRoom)
+        {
+            pthread_mutex_unlock(&user_mutex);
             break;
+        }
+        pthread_mutex_unlock(&user_mutex);
+
         buff[ret] = 0;
         if (buff[ret - 1] = '\n')
             buff[ret - 1] = 0;
@@ -407,10 +559,12 @@ void *threadProcessing(void *arg)
         else if (strcmp(cmd, "TOPIC") == 0)
         {
             // TOPIC
+            topic(isLogged, value, socket);
         }
         else if (strcmp(cmd, "QUIT") == 0)
         {
             // QUIT
+            quit(isLogged, socket);
         }
         else
         {
@@ -418,6 +572,7 @@ void *threadProcessing(void *arg)
             send(socket, error, strlen(error), 0);
         }
     }
+    close(socket);
 }
 
 int main(int argc, char* argv[])
@@ -473,7 +628,7 @@ int main(int argc, char* argv[])
         if (user_numbers < MAX_USER)
         {
             pthread_mutex_lock(&user_mutex);
-            
+
             client[user_numbers] = clientSocket;
             user_numbers++;
             pthread_create(&thread_id, NULL, threadProcessing, (void *)&clientSocket);
