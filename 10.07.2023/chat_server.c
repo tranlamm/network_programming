@@ -262,7 +262,7 @@ bool op(bool isLogged, char *value, int socket)
     }
 
     char mess[256];
-    sprintf(mess, "OP %s", client_name[index_sendto]);
+    sprintf(mess, "OP %s\r\n", client_name[index_sendto]);
     for (int i = 0; i < user_numbers; ++i)
     {
         if (socket != client[i] && client_name[i] != NULL)
@@ -337,7 +337,7 @@ bool kick(bool isLogged, char *value, int socket)
     }
 
     char mess[256];
-    sprintf(mess, "KICK %s %s", client_name[index_sendto], client_name[index]);
+    sprintf(mess, "KICK %s %s\r\n", client_name[index_sendto], client_name[index]);
     for (int i = 0; i < user_numbers; ++i)
     {
         if (socket != client[i] && client_name[i] != NULL)
@@ -352,6 +352,9 @@ bool kick(bool isLogged, char *value, int socket)
     client[index_sendto] = client[user_numbers - 1];
     client_name[index_sendto] = client_name[user_numbers - 1];
     client_name[user_numbers - 1] = NULL;
+    // if client[user_numbers - 1] is host
+    if (host == user_numbers - 1)
+        host = index_sendto;
     user_numbers--;
     
     pthread_mutex_unlock(&user_mutex);
@@ -398,7 +401,7 @@ bool topic(bool isLogged, char *value, int socket)
     }
 
     char mess[256];
-    sprintf(mess, "TOPIC %s", value);
+    sprintf(mess, "TOPIC %s\r\n", value);
     for (int i = 0; i < user_numbers; ++i)
     {
         if (socket != client[i] && client_name[i] != NULL)
@@ -447,6 +450,9 @@ bool quit(bool isLogged, int socket)
     free(tmp);
     client_name[index] = client_name[user_numbers - 1];
     client_name[user_numbers - 1] = NULL;
+    // if client[user_numbers - 1] is host
+    if (host == user_numbers - 1)
+        host = index;
     user_numbers--;
     
     // If node is host then reset host to user 0
@@ -496,6 +502,9 @@ void *threadProcessing(void *arg)
             }
             client_name[index] = client_name[user_numbers - 1];
             client_name[user_numbers - 1] = NULL;
+            // if client[user_numbers - 1] is host
+            if (host == user_numbers - 1)
+                host = index;
             user_numbers--;
             // If node is host then reset host to user 0
             if (index == host)
@@ -527,8 +536,6 @@ void *threadProcessing(void *arg)
         sscanf(buff, "%s", cmd);
         int cmd_len = strlen(cmd) + 1;
         strcpy(value, buff + cmd_len);
-        printf("%s\n", cmd);
-        printf("%s %ld\n", value, strlen(value));
         value[strlen(value)] = 0;
         if (strcmp(cmd, "JOIN") == 0)
         {
